@@ -3,8 +3,12 @@ __pycache__/
 .DS_Store
 .env
 venv/
+.venv/
 .idea/
 .vscode/
 *.egg-info/
 dist/
 build/
+node_modules/
+.pytest_cache/
+.ruff_cache/

@@ -5,15 +5,28 @@ function App() {
   const [pendingImages, setPendingImages] = useState([]);
   const [currentImage, setCurrentImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0, total: 0 });
 
   // Backend URL - assume running on port 8000
   const API_URL = 'http://localhost:8000';
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stats`);
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error("Failed to fetch stats:", err);
+    }
+  };
 
   const fetchPending = async () => {
     try {
       const res = await fetch(`${API_URL}/api/pending`);
       const data = await res.json();
       setPendingImages(data);
+      // Also fetch stats whenever we fetch pending
+      fetchStats();
     } catch (err) {
       console.error("Failed to fetch pending images:", err);
     }
@@ -64,6 +77,8 @@ function App() {
       if (res.ok) {
         // Remove processed image from list
         setPendingImages(prev => prev.slice(1));
+        // Refresh stats
+        fetchStats();
       } else {
         console.error("Action failed");
       }
@@ -119,7 +134,10 @@ function App() {
       </div>
       
       <div className="status">
-        Pending: {pendingImages.length}
+        <div className="stat-item">Pending: {stats.pending}</div>
+        <div className="stat-item">Accepted: {stats.accepted}</div>
+        <div className="stat-item">Rejected: {stats.rejected}</div>
+        <div className="stat-item">Total: {stats.total}</div>
       </div>
     </div>
   )

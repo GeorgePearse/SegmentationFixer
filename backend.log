@@ -895,3 +895,197 @@ INFO:     127.0.0.1:53729 - "GET /api/pending HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53732 - "GET /api/pending HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53729 - "GET /api/pending HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53735 - "GET /images/demo_006_comparison.png HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:53766 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53769 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53783 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53786 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53804 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53809 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53827 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53832 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53848 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53856 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53870 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53875 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53892 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53896 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53903 - "POST /api/accept/demo_006_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53905 - "GET /images/demo_008_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53903 - "POST /api/accept/demo_008_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53905 - "GET /images/demo_007_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53903 - "POST /api/accept/demo_007_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53905 - "GET /images/demo_003_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53903 - "POST /api/reject/demo_003_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53905 - "GET /images/demo_002_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53911 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53903 - "POST /api/reject/demo_002_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53905 - "GET /images/demo_009_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53903 - "POST /api/reject/demo_009_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53905 - "GET /images/demo_010_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53914 - "POST /api/reject/demo_010_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53916 - "GET /images/demo_005_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53914 - "POST /api/accept/demo_005_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53916 - "GET /images/demo_001_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53914 - "POST /api/accept/demo_001_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53916 - "GET /images/demo_004_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53914 - "POST /api/accept/demo_004_comparison.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53928 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53930 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53947 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53962 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53972 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:53991 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54000 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54017 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54033 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54054 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54056 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54080 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54086 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54097 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54101 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54110 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54117 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54134 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54136 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54134 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54134 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54136 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54134 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54134 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54134 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54141 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54145 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54162 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54162 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54164 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54162 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54167 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54174 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54183 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54194 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54196 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54194 - "GET /api/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54194 - "GET /api/stats HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54214 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54226 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54239 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54242 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54256 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54263 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54288 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54306 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54317 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54321 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54347 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54353 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54370 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54380 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54392 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:54398 - "WebSocket /ws/logs" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed

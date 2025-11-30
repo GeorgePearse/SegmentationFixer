@@ -39,6 +39,21 @@ import json
 # ...
 
 
+@app.get("/api/stats")
+def get_stats():
+    """Returns counts of pending, accepted, and rejected images."""
+    pending_count = len(list(DATA_DIR.glob("*_comparison.png")))
+    accepted_count = len(list(ACCEPTED_DIR.glob("*_comparison.png")))
+    rejected_count = len(list(REJECTED_DIR.glob("*_comparison.png")))
+
+    return {
+        "pending": pending_count,
+        "accepted": accepted_count,
+        "rejected": rejected_count,
+        "total": pending_count + accepted_count + rejected_count,
+    }
+
+
 @app.get("/api/pending")
 def get_pending_images():
     """Returns list of pending comparison images with metadata."""

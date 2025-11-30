@@ -31,6 +31,26 @@ function App() {
     }
   }, [pendingImages]);
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Ignore if loading or no image
+      if (loading || !currentImage) return;
+
+      if (event.key === 'j' || event.key === 'J') {
+        handleDecision('accept');
+      } else if (event.key === 'i' || event.key === 'I') {
+        handleDecision('reject');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [loading, currentImage]); // Dependencies ensure we have fresh state
+
   const handleDecision = async (decision) => {
     if (!currentImage) return;
     setLoading(true);

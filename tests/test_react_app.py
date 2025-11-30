@@ -88,8 +88,14 @@ def test_react_app_flow(page: Page, services):
         page.get_by_role("heading", name="Segmentation Fixer Review")
     ).to_be_visible()
 
+    # Check Metadata display
+    # We expect "SAM Confidence: 98.5%" and "Difference (IoU): 0.325" (approx)
+    expect(page.get_by_text("SAM Confidence:")).to_be_visible()
+    expect(page.get_by_text("Difference (IoU):")).to_be_visible()
+
     # Check if an image is loaded (we expect the demo image)
     # The image src should point to the backend
+
     img = page.locator(".image-container img")
     expect(img).to_be_visible()
 

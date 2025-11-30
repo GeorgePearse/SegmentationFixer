@@ -5,3 +5,6 @@ opencv-python
 numpy
 matplotlib
 click
+fastapi
+uvicorn
+python-multipart

@@ -13,10 +13,15 @@ A tool for running the Segment Anything Model (SAM) over existing segmentation a
 
 ## Installation
 
+### Prerequisites
+
+- [uv](https://github.com/astral-sh/uv) (for Python package management)
+- Node.js & npm (for frontend)
+
 ### Backend
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ### Frontend
@@ -26,20 +31,20 @@ cd frontend
 npm install
 ```
 
-### Development Tools (Pre-commit)
+### Development Tools
 
 We use `ruff` for linting/formatting and `zuban` for type checking.
 
-1. Install pre-commit: `pip install pre-commit`
-2. Install hooks: `pre-commit install`
-3. Make sure you have `zuban` installed (`pip install zuban`).
+```bash
+uv run pre-commit install
+```
 
 ## Demo
 
 To generate synthetic demo data:
 
 ```bash
-python examples/generate_demo_data.py
+uv run examples/generate_demo_data.py
 ```
 
 ## Running the App
@@ -47,7 +52,7 @@ python examples/generate_demo_data.py
 1. **Start the Backend:**
 
    ```bash
-   python backend/main.py
+   uv run backend/main.py
    ```
    (Runs on http://localhost:8000)
 

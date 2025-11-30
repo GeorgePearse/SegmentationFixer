@@ -5,25 +5,24 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
-
-# Import our modules
-# Assuming running from root, so we need to fix path or install as package
 import sys
 
+# Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from src.segmentation_fixer import SegmentationFixer
 from src.utils import load_image, load_mask, save_comparison
 
-# Try importing segment_anything, handle if missing
+# Import Wrappers
 try:
     from segment_anything import sam_model_registry, SamPredictor
 except ImportError:
-    print(
-        "Warning: segment_anything not installed. Mocks will be used if provided, otherwise this will fail."
-    )
     SamPredictor = None
-    sam_model_registry = None
+
+try:
+    from src.fastsam_wrapper import FastSAMWrapper
+except ImportError:
+    FastSAMWrapper = None
 
 
 @click.command()
@@ -46,10 +45,12 @@ except ImportError:
     "--checkpoint",
     required=True,
     type=click.Path(exists=True),
-    help="Path to SAM checkpoint",
+    help="Path to Checkpoint (SAM or FastSAM)",
 )
 @click.option(
-    "--model_type", default="vit_h", help="SAM model type (vit_h, vit_l, vit_b)"
+    "--model_type",
+    default="vit_h",
+    help='Model type (vit_h, vit_l, vit_b) or "fastsam"',
 )
 @click.option(
     "--prompt_type",
@@ -58,32 +59,38 @@ except ImportError:
     help="Prompting strategy",
 )
 @click.option(
-    "--device",
-    default="cuda" if torch.cuda.is_available() else "cpu",
-    help="Device to run SAM on",
+    "--device", default="cuda" if torch.cuda.is_available() else "cpu", help="Device"
 )
 def main(image_dir, mask_dir, output_dir, checkpoint, model_type, prompt_type, device):
     """
-    Run SAM over existing masks and save comparisons.
+    Run Segmentation Fixer over existing masks.
     """
-    if SamPredictor is None:
-        print("Error: segment-anything library is missing. Please install it.")
-        return
-
-    # Create output directory
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(os.path.join(output_dir, "accepted"), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, "rejected"), exist_ok=True)
 
-    # Load Model
-    print(f"Loading SAM model ({model_type}) from {checkpoint}...")
-    sam = sam_model_registry[model_type](checkpoint=checkpoint)
-    sam.to(device=device)
-    predictor = SamPredictor(sam)
+    predictor = None
+
+    if model_type.lower() == "fastsam":
+        if FastSAMWrapper is None:
+            print(
+                "FastSAM wrapper failed to import. Ensure requirements are installed."
+            )
+            return
+        print(f"Loading FastSAM from {checkpoint}...")
+        predictor = FastSAMWrapper(checkpoint, device=device)
+
+    else:
+        # Standard SAM
+        if SamPredictor is None:
+            print("segment-anything not installed.")
+            return
+        print(f"Loading SAM ({model_type}) from {checkpoint}...")
+        sam = sam_model_registry[model_type](checkpoint=checkpoint)
+        sam.to(device=device)
+        predictor = SamPredictor(sam)
 
     fixer = SegmentationFixer(predictor)
 
-    # Get images
+    # ... (rest of the loop is same as before) ...
     image_extensions = ["*.jpg", "*.jpeg", "*.png", "*.bmp"]
     image_paths = []
     for ext in image_extensions:
@@ -96,10 +103,8 @@ def main(image_dir, mask_dir, output_dir, checkpoint, model_type, prompt_type, d
         stem = Path(img_path).stem
 
         # Find corresponding mask
-        # Assuming mask has same name or same stem
         mask_path = os.path.join(mask_dir, base_name)
         if not os.path.exists(mask_path):
-            # Try png if image is jpg
             mask_path = os.path.join(mask_dir, stem + ".png")
             if not os.path.exists(mask_path):
                 print(f"Mask not found for {base_name}, skipping.")
@@ -118,16 +123,12 @@ def main(image_dir, mask_dir, output_dir, checkpoint, model_type, prompt_type, d
                 print(f"Skipping {base_name} - empty prompt or error.")
                 continue
 
-            # Calculate IoU for logging
             iou = fixer.calculate_iou(mask, new_mask)
-            print(f"  SAM Score: {score:.3f}, IoU with original: {iou:.3f}")
+            print(f"  Score: {score:.3f}, IoU: {iou:.3f}")
 
             # Save comparison
             out_file = os.path.join(output_dir, f"{stem}_comparison.png")
             save_comparison(image, mask, new_mask, score, out_file)
-
-            # Here we could add logic to automatically accept/reject or move files
-            # For now, we just save the comparison and the new mask
 
             # Save new mask
             new_mask_uint8 = (new_mask * 255).astype(np.uint8)
@@ -137,6 +138,9 @@ def main(image_dir, mask_dir, output_dir, checkpoint, model_type, prompt_type, d
 
         except Exception as e:
             print(f"Error processing {base_name}: {e}")
+            import traceback
+
+            traceback.print_exc()
 
 
 if __name__ == "__main__":

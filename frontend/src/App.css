@@ -1,54 +1,9 @@
-#root {
-  max_width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.container {
+.metadata {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
   gap: 20px;
-}
-
-.image-container {
-  max-width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 10px;
-  background: #f9f9f9;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-.controls {
-  display: flex;
-  gap: 20px;
-}
-
-button {
-  padding: 10px 20px;
-  font-size: 1.2em;
-  cursor: pointer;
-  border: none;
+  margin-bottom: 10px;
+  background: #eee;
+  padding: 8px;
   border-radius: 4px;
-}
-
-.accept {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.reject {
-  background-color: #f44336;
-  color: white;
-}
-
-.empty {
-  font-size: 1.5em;
-  color: #666;
 }

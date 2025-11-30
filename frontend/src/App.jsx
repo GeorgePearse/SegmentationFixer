@@ -37,7 +37,7 @@ function App() {
 
     try {
       const endpoint = decision === 'accept' ? 'accept' : 'reject';
-      const res = await fetch(`${API_URL}/api/${endpoint}/${currentImage}`, {
+      const res = await fetch(`${API_URL}/api/${endpoint}/${currentImage.filename}`, {
         method: 'POST'
       });
       
@@ -69,9 +69,13 @@ function App() {
       
       {currentImage && (
         <div className="image-container">
-          <h3>Reviewing: {currentImage.replace('_comparison.png', '')}</h3>
+          <h3>Reviewing: {currentImage.stem}</h3>
+          <div className="metadata">
+            <span><strong>SAM Confidence:</strong> {(currentImage.score * 100).toFixed(1)}%</span>
+            <span><strong>Difference (IoU):</strong> {currentImage.iou.toFixed(3)}</span>
+          </div>
           <img 
-            src={`${API_URL}/images/${currentImage}`} 
+            src={`${API_URL}/images/${currentImage.filename}`} 
             alt="Comparison" 
           />
         </div>

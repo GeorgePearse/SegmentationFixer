@@ -34,13 +34,40 @@ app.add_middleware(
 app.mount("/images", StaticFiles(directory=str(DATA_DIR)), name="images")
 
 
+import json
+
+# ...
+
+
 @app.get("/api/pending")
 def get_pending_images():
-    """Returns list of pending comparison images."""
+    """Returns list of pending comparison images with metadata."""
     # Look for *_comparison.png
-    # We return the filename so the frontend can request it via /images/{filename}
     files = sorted(list(DATA_DIR.glob("*_comparison.png")))
-    return [f.name for f in files]
+
+    results = []
+    for f in files:
+        stem = f.name.replace("_comparison.png", "")
+        meta_file = DATA_DIR / f"{stem}_metadata.json"
+
+        score = 0.0
+        iou = 0.0
+
+        if meta_file.exists():
+            try:
+                with open(meta_file, "r") as mf:
+                    data = json.load(mf)
+                    score = data.get("score", 0.0)
+                    iou = data.get("iou", 0.0)
+            except Exception:
+                pass
+
+        results.append({"filename": f.name, "stem": stem, "score": score, "iou": iou})
+
+    # Sort by IoU ascending (most different first)
+    results.sort(key=lambda x: x["iou"])
+
+    return results
 
 
 @app.post("/api/accept/{filename}")
@@ -66,9 +93,13 @@ def move_files(comparison_filename: str, destination_dir: Path):
     # Files to move
     # 1. The comparison image
     # 2. The new mask (*_new_mask.png)
-    # 3. Maybe the original image/mask? For now sticking to the streamlit logic.
+    # 3. The metadata json (*_metadata.json)
 
-    files_to_move = [source_path, DATA_DIR / f"{base_name}_new_mask.png"]
+    files_to_move = [
+        source_path,
+        DATA_DIR / f"{base_name}_new_mask.png",
+        DATA_DIR / f"{base_name}_metadata.json",
+    ]
 
     moved_files = []
     for f in files_to_move:

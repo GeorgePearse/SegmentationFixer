@@ -5,7 +5,7 @@ import sys
 
 # Add src to path to import utils
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from src.utils import save_comparison
+from src.utils import save_comparison, save_metadata
 
 
 def create_synthetic_data(output_dir):
@@ -42,17 +42,28 @@ def create_synthetic_data(output_dir):
     bad_mask_bool = bad_mask > 128
     good_mask_bool = good_mask > 128
 
+    # Calculate fake IoU
+    intersection = np.logical_and(bad_mask_bool, good_mask_bool).sum()
+    union = np.logical_or(bad_mask_bool, good_mask_bool).sum()
+    iou = intersection / union if union > 0 else 0.0
+
     # 4. Generate Comparison
     # We need to swap channels for matplotlib (BGR -> RGB)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    score = 0.985
+    stem = "demo"
 
     save_comparison(
         image_rgb,
         bad_mask_bool,
         good_mask_bool,
-        score=0.985,
-        filepath=os.path.join(output_dir, "demo_comparison.png"),
+        score=score,
+        filepath=os.path.join(output_dir, f"{stem}_comparison.png"),
     )
+
+    # Save metadata
+    save_metadata(score, iou, os.path.join(output_dir, f"{stem}_metadata.json"))
 
     print(f"Generated demo data in {output_dir}")
 

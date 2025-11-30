@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import os
+import json
 
 
 def show_mask(mask, ax, random_color=False):
@@ -66,6 +67,15 @@ def save_comparison(image, old_mask, new_mask, score, filepath):
     plt.tight_layout()
     plt.savefig(filepath)
     plt.close()
+
+
+def save_metadata(score, iou, filepath):
+    """
+    Save metadata (like score and iou) to a JSON file.
+    """
+    data = {"score": float(score), "iou": float(iou)}
+    with open(filepath, "w") as f:
+        json.dump(data, f)
 
 
 def load_image(path):

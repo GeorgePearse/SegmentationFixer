@@ -11,7 +11,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from src.segmentation_fixer import SegmentationFixer
-from src.utils import load_image, load_mask, save_comparison
+from src.utils import load_image, load_mask, save_comparison, save_metadata
 
 # Import Wrappers
 try:
@@ -130,8 +130,13 @@ def main(image_dir, mask_dir, output_dir, checkpoint, model_type, prompt_type, d
             out_file = os.path.join(output_dir, f"{stem}_comparison.png")
             save_comparison(image, mask, new_mask, score, out_file)
 
+            # Save metadata
+            meta_file = os.path.join(output_dir, f"{stem}_metadata.json")
+            save_metadata(score, iou, meta_file)
+
             # Save new mask
             new_mask_uint8 = (new_mask * 255).astype(np.uint8)
+
             cv2.imwrite(
                 os.path.join(output_dir, f"{stem}_new_mask.png"), new_mask_uint8
             )

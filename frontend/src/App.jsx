@@ -9,6 +9,7 @@ function App() {
   const [progress, setProgress] = useState({ current: 0, total: 100 });
   const [isDone, setIsDone] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState(null);
+  const [fullscreenVariation, setFullscreenVariation] = useState(null);
 
   useEffect(() => {
     const socket = new WebSocket('ws://localhost:3000/ws');
@@ -56,20 +57,74 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Handle Escape to close fullscreen
+      if (e.key === 'Escape' && fullscreenVariation !== null) {
+        setFullscreenVariation(null);
+        return;
+      }
+
       if (!proposal || !ws) return;
-      
+
+      // Handle arrow keys for cycling variations (works in both normal and fullscreen mode)
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (proposal.variations && proposal.variations.length > 0) {
+          const cycleVariation = (prev) => {
+            if (prev === null || prev === 0) {
+              return proposal.variations.length - 1;
+            }
+            return prev - 1;
+          };
+
+          if (fullscreenVariation !== null) {
+            // In fullscreen: cycle fullscreen variation
+            setFullscreenVariation(cycleVariation);
+            setSelectedVariation(cycleVariation);
+          } else {
+            // Normal mode: cycle selected variation
+            setSelectedVariation(cycleVariation);
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (proposal.variations && proposal.variations.length > 0) {
+          const cycleVariation = (prev) => {
+            if (prev === null) {
+              return 0;
+            }
+            return (prev + 1) % proposal.variations.length;
+          };
+
+          if (fullscreenVariation !== null) {
+            // In fullscreen: cycle fullscreen variation
+            setFullscreenVariation(cycleVariation);
+            setSelectedVariation(cycleVariation);
+          } else {
+            // Normal mode: cycle selected variation
+            setSelectedVariation(cycleVariation);
+          }
+        }
+        return;
+      }
+
+      // Accept/Reject actions (also work in fullscreen)
       if (e.key === 'i' || e.key === 'I') {
-        if (selectedVariation === null) {
+        const variationToAccept = fullscreenVariation !== null ? fullscreenVariation : selectedVariation;
+        if (variationToAccept === null) {
           alert('Please select a variation first');
           return;
         }
         ws.send(JSON.stringify({
           type: 'ACCEPT',
           annotation_id: proposal.annotation_id,
-          variation_index: selectedVariation
+          variation_index: variationToAccept
         }));
         setProposal(null);
         setSelectedVariation(null);
+        setFullscreenVariation(null);
       } else if (e.key === 'j' || e.key === 'J') {
         ws.send(JSON.stringify({
           type: 'REJECT',
@@ -77,21 +132,22 @@ function App() {
         }));
         setProposal(null);
         setSelectedVariation(null);
+        setFullscreenVariation(null);
       } else if (e.key === 'ArrowLeft') {
-        // Reject and go to previous (same as reject, but could be enhanced to track history)
         ws.send(JSON.stringify({
           type: 'REJECT',
           annotation_id: proposal.annotation_id
         }));
         setProposal(null);
         setSelectedVariation(null);
+        setFullscreenVariation(null);
       } else if (e.key === 'ArrowRight') {
-        // Accept current selection if one is selected, otherwise skip
-        if (selectedVariation !== null) {
+        const variationToAccept = fullscreenVariation !== null ? fullscreenVariation : selectedVariation;
+        if (variationToAccept !== null) {
           ws.send(JSON.stringify({
             type: 'ACCEPT',
             annotation_id: proposal.annotation_id,
-            variation_index: selectedVariation
+            variation_index: variationToAccept
           }));
         } else {
           ws.send(JSON.stringify({
@@ -101,12 +157,13 @@ function App() {
         }
         setProposal(null);
         setSelectedVariation(null);
+        setFullscreenVariation(null);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [proposal, ws, selectedVariation]);
+  }, [proposal, ws, selectedVariation, fullscreenVariation]);
 
   const save = async () => {
     try {
@@ -262,7 +319,7 @@ function App() {
       </header>
 
       <main className="workspace">
-        {/* Top: Original */}
+        {/* Top: Original + Selected Variation Comparison */}
         <div className="original-view"
              onWheel={handleWheel}
              onMouseDown={handleMouseDown}
@@ -270,20 +327,26 @@ function App() {
              onMouseUp={handleMouseUp}
              onMouseLeave={handleMouseUp}
         >
-            <div className="view-label">Original Segmentation</div>
-            <svg 
+            <div className="view-label">
+              {selectedVariation !== null && proposal.variations
+                ? `Comparing: Original (red) vs ${proposal.variations[selectedVariation].name} (green)`
+                : 'Original Segmentation (use ↑↓ to compare options)'}
+            </div>
+            <svg
                 className="zoom-svg"
                 viewBox={viewBoxStr}
                 preserveAspectRatio="xMidYMid meet"
             >
-                <image 
-                    href={imageUrl} 
-                    x="0" 
-                    y="0" 
-                    width={proposal.width} 
-                    height={proposal.height} 
+                <image
+                    href={imageUrl}
+                    x="0"
+                    y="0"
+                    width={proposal.width}
+                    height={proposal.height}
                 />
                 {renderPoly(proposal.original_segmentation, "#ff3e3e", false, 2)}
+                {selectedVariation !== null && proposal.variations &&
+                  renderVariationPoly(proposal.variations[selectedVariation].new_points)}
             </svg>
         </div>
 
@@ -291,14 +354,20 @@ function App() {
         <div className="variations-container">
             <div className="variations-header">
                 <h3>Choose Your Preferred Snapping Option</h3>
-                <p>Click on an option below, then press <kbd>I</kbd> to accept or <kbd>J</kbd> to reject</p>
+                <p>Click to select, <kbd>Shift</kbd>+Click for fullscreen. Press <kbd>I</kbd> to accept or <kbd>J</kbd> to reject</p>
             </div>
             <div className="variations-grid">
                 {proposal.variations && proposal.variations.map((variation, idx) => (
-                    <div 
+                    <div
                         key={idx}
                         className={`variation-card ${selectedVariation === idx ? 'selected' : ''}`}
-                        onClick={() => setSelectedVariation(idx)}
+                        onClick={(e) => {
+                            if (e.shiftKey) {
+                                setFullscreenVariation(idx);
+                            } else {
+                                setSelectedVariation(idx);
+                            }
+                        }}
                     >
                         <div className="variation-preview">
                             <svg 
@@ -325,6 +394,7 @@ function App() {
         </div>
 
         <div className="overlay-instructions">
+            <div className="key-hint"><kbd>↑</kbd><kbd>↓</kbd> Cycle options</div>
             <div className="key-hint"><kbd>←</kbd> Skip</div>
             <div className="key-hint"><kbd>→</kbd> Next {selectedVariation !== null && `(Accept ${proposal.variations[selectedVariation].name})`}</div>
             <div className="key-hint"><kbd>I</kbd> Accept</div>
@@ -350,6 +420,44 @@ function App() {
             <span>{proposal.variations ? proposal.variations.length : 0}</span>
         </div>
       </footer>
+
+      {/* Fullscreen Modal */}
+      {fullscreenVariation !== null && proposal.variations && (
+        <div
+          className="fullscreen-modal"
+          onClick={() => setFullscreenVariation(null)}
+        >
+          <div className="fullscreen-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="fullscreen-close"
+              onClick={() => setFullscreenVariation(null)}
+            >
+              ✕
+            </button>
+            <div className="fullscreen-title">
+              {proposal.variations[fullscreenVariation].name}
+            </div>
+            <svg
+              viewBox={viewBoxStr}
+              preserveAspectRatio="xMidYMid meet"
+              className="fullscreen-svg"
+            >
+              <image
+                href={imageUrl}
+                x="0"
+                y="0"
+                width={proposal.width}
+                height={proposal.height}
+              />
+              {renderPoly(proposal.original_segmentation, "#ff3e3e", true, 1.5)}
+              {renderVariationPoly(proposal.variations[fullscreenVariation].new_points)}
+            </svg>
+            <div className="fullscreen-hint">
+              <kbd>↑</kbd><kbd>↓</kbd> Cycle options | <kbd>I</kbd> Accept | <kbd>J</kbd> Skip | <kbd>Esc</kbd> Close
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

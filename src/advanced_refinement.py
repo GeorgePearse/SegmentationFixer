@@ -5,9 +5,8 @@ Provides multiple algorithmic approaches to find true object boundaries.
 
 import numpy as np
 import cv2
-from typing import List, Tuple, Optional
+from typing import List
 from scipy import ndimage
-from skimage import segmentation, morphology
 
 
 def polygon_to_mask(polygon: List[float], width: int, height: int) -> np.ndarray:
@@ -250,16 +249,19 @@ class SuperpixelRefiner:
         n_segments: int = 100,
         compactness: float = 10.0,
         overlap_threshold: float = 0.5,
+        mode: str = "default",
     ):
         """
         Args:
             n_segments: Approximate number of superpixels
             compactness: Balance between color similarity and spatial proximity
             overlap_threshold: Minimum overlap to include superpixel
+            mode: 'default' (both), 'reduce' (only shrink), 'expand' (only grow)
         """
         self.n_segments = n_segments
         self.compactness = compactness
         self.overlap_threshold = overlap_threshold
+        self.mode = mode
 
     def refine(self, image: np.ndarray, polygon: List[float]) -> List[float]:
         """
@@ -299,10 +301,530 @@ class SuperpixelRefiner:
                 if total > 0 and overlap / total > self.overlap_threshold:
                     refined_mask[segment_mask] = 255
 
+            # Apply mode constraints
+            if self.mode == "reduce":
+                refined_mask = cv2.bitwise_and(refined_mask, mask)
+            elif self.mode == "expand":
+                refined_mask = cv2.bitwise_or(refined_mask, mask)
+
             # Convert to polygon
             return mask_to_polygon(refined_mask)
         except Exception as e:
             print(f"Superpixel refinement failed: {e}")
+            return polygon
+
+
+class SmartSuperpixelRefiner:
+    """
+    Smart superpixel refinement combining:
+    1. Edge-awareness (bias toward staying on Canny edges)
+    2. Smooth point bias (morphological smoothing + adaptive polygon simplification)
+    3. Bilateral pre-filtering (reduce texture sensitivity)
+
+    Produces clean, smooth polygons that follow real object boundaries.
+    """
+
+    def __init__(
+        self,
+        n_segments: int = 100,
+        compactness: float = 20.0,
+        overlap_threshold: float = 0.5,
+        edge_stickiness: float = 0.3,
+        smooth_kernel: int = 7,
+        polygon_epsilon: float = 0.003,
+        canny_low: int = 50,
+        canny_high: int = 150,
+        bilateral_sigma: int = 75,
+        mode: str = "default",
+    ):
+        """
+        Args:
+            n_segments: Approximate number of superpixels
+            compactness: Balance between color/spatial (higher = more regular)
+            overlap_threshold: Base threshold for superpixel inclusion
+            edge_stickiness: Bias toward keeping boundary on edges (0-1)
+            smooth_kernel: Morphological kernel size for smoothing
+            polygon_epsilon: Douglas-Peucker epsilon factor (higher = smoother)
+            canny_low: Canny edge detection low threshold
+            canny_high: Canny edge detection high threshold
+            bilateral_sigma: Bilateral filter sigma for pre-smoothing
+            mode: 'default', 'reduce', or 'expand'
+        """
+        self.n_segments = n_segments
+        self.compactness = compactness
+        self.overlap_threshold = overlap_threshold
+        self.edge_stickiness = edge_stickiness
+        self.smooth_kernel = smooth_kernel
+        self.polygon_epsilon = polygon_epsilon
+        self.canny_low = canny_low
+        self.canny_high = canny_high
+        self.bilateral_sigma = bilateral_sigma
+        self.mode = mode
+
+    def _smooth_mask_to_polygon(self, mask: np.ndarray) -> List[float]:
+        """Convert mask to polygon with morphological smoothing."""
+        # Apply morphological smoothing: close then open
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, (self.smooth_kernel, self.smooth_kernel)
+        )
+        smoothed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        smoothed = cv2.morphologyEx(smoothed, cv2.MORPH_OPEN, kernel)
+
+        # Extract contours
+        contours, _ = cv2.findContours(
+            smoothed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contours:
+            return []
+
+        # Get largest contour
+        largest = max(contours, key=cv2.contourArea)
+
+        # Apply Douglas-Peucker with adaptive epsilon for smooth output
+        epsilon = self.polygon_epsilon * cv2.arcLength(largest, True)
+        approx = cv2.approxPolyDP(largest, epsilon, True)
+
+        return approx.reshape(-1).astype(float).tolist()
+
+    def refine(self, image: np.ndarray, polygon: List[float]) -> List[float]:
+        """
+        Refine polygon using smart superpixels.
+
+        Pipeline:
+        1. Detect Canny edges for edge-awareness
+        2. Pre-smooth image with bilateral filter
+        3. Generate superpixels
+        4. Select superpixels with edge-aware thresholding
+        5. Smooth the mask morphologically
+        6. Convert to smooth polygon
+        """
+        h, w = image.shape[:2]
+        mask = polygon_to_mask(polygon, w, h)
+
+        try:
+            from skimage.segmentation import slic
+
+            # 1. Detect Canny edges
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            edges = cv2.Canny(gray, self.canny_low, self.canny_high)
+
+            # 2. Find where mask boundary aligns with edges
+            mask_boundary = cv2.Canny(mask, 100, 200)
+            edges_dilated = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+            edge_aligned_boundary = cv2.bitwise_and(mask_boundary, edges_dilated)
+            edge_zone = cv2.dilate(
+                edge_aligned_boundary, np.ones((5, 5), np.uint8), iterations=2
+            )
+
+            # 3. Pre-smooth image with bilateral filter
+            smoothed_img = cv2.bilateralFilter(
+                image,
+                d=9,
+                sigmaColor=self.bilateral_sigma,
+                sigmaSpace=self.bilateral_sigma,
+            )
+
+            # 4. Generate superpixels
+            segments = slic(
+                smoothed_img,
+                n_segments=self.n_segments,
+                compactness=self.compactness,
+                start_label=1,
+            )
+
+            # 5. Build refined mask with edge-awareness
+            refined_mask = np.zeros_like(mask)
+
+            for segment_id in np.unique(segments):
+                segment_mask = segments == segment_id
+                total = segment_mask.sum()
+                if total == 0:
+                    continue
+
+                overlap = np.logical_and(segment_mask, mask > 0).sum()
+                overlap_ratio = overlap / total
+
+                # Edge-aware threshold adjustment
+                edge_zone_overlap = np.logical_and(segment_mask, edge_zone > 0).sum()
+                touches_edge_zone = edge_zone_overlap > 0
+
+                if touches_edge_zone:
+                    if overlap_ratio > 0.5:
+                        effective_threshold = self.overlap_threshold * (
+                            1 - self.edge_stickiness
+                        )
+                    else:
+                        effective_threshold = self.overlap_threshold * (
+                            1 + self.edge_stickiness
+                        )
+                else:
+                    effective_threshold = self.overlap_threshold
+
+                if overlap_ratio > effective_threshold:
+                    refined_mask[segment_mask] = 255
+
+            # Apply mode constraints
+            if self.mode == "reduce":
+                refined_mask = cv2.bitwise_and(refined_mask, mask)
+            elif self.mode == "expand":
+                refined_mask = cv2.bitwise_or(refined_mask, mask)
+
+            # 6. Convert to smooth polygon
+            return self._smooth_mask_to_polygon(refined_mask)
+
+        except Exception as e:
+            print(f"Smart superpixel refinement failed: {e}")
+            return polygon
+
+
+class ConservativeSmartSuperpixelRefiner:
+    """
+    Smart superpixel refinement with penalty for large area changes.
+
+    Extends SmartSuperpixelRefiner with:
+    - Area change penalty: superpixels that would cause large area changes
+      are less likely to be included/excluded
+    - Preserves overall mask area while improving boundary quality
+
+    This is more conservative - it refines boundaries without drastically
+    changing the segmentation size.
+    """
+
+    def __init__(
+        self,
+        n_segments: int = 100,
+        compactness: float = 20.0,
+        overlap_threshold: float = 0.5,
+        edge_stickiness: float = 0.3,
+        area_penalty: float = 0.5,
+        max_area_change: float = 0.15,
+        smooth_kernel: int = 7,
+        polygon_epsilon: float = 0.003,
+        canny_low: int = 50,
+        canny_high: int = 150,
+        bilateral_sigma: int = 75,
+        mode: str = "default",
+    ):
+        """
+        Args:
+            n_segments: Approximate number of superpixels
+            compactness: Balance between color/spatial (higher = more regular)
+            overlap_threshold: Base threshold for superpixel inclusion
+            edge_stickiness: Bias toward keeping boundary on edges (0-1)
+            area_penalty: How much to penalize area changes (0-1)
+            max_area_change: Maximum allowed fractional area change (0-1)
+            smooth_kernel: Morphological kernel size for smoothing
+            polygon_epsilon: Douglas-Peucker epsilon factor (higher = smoother)
+            canny_low: Canny edge detection low threshold
+            canny_high: Canny edge detection high threshold
+            bilateral_sigma: Bilateral filter sigma for pre-smoothing
+            mode: 'default', 'reduce', or 'expand'
+        """
+        self.n_segments = n_segments
+        self.compactness = compactness
+        self.overlap_threshold = overlap_threshold
+        self.edge_stickiness = edge_stickiness
+        self.area_penalty = area_penalty
+        self.max_area_change = max_area_change
+        self.smooth_kernel = smooth_kernel
+        self.polygon_epsilon = polygon_epsilon
+        self.canny_low = canny_low
+        self.canny_high = canny_high
+        self.bilateral_sigma = bilateral_sigma
+        self.mode = mode
+
+    def _smooth_mask_to_polygon(self, mask: np.ndarray) -> List[float]:
+        """Convert mask to polygon with morphological smoothing."""
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, (self.smooth_kernel, self.smooth_kernel)
+        )
+        smoothed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        smoothed = cv2.morphologyEx(smoothed, cv2.MORPH_OPEN, kernel)
+
+        contours, _ = cv2.findContours(
+            smoothed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contours:
+            return []
+
+        largest = max(contours, key=cv2.contourArea)
+        epsilon = self.polygon_epsilon * cv2.arcLength(largest, True)
+        approx = cv2.approxPolyDP(largest, epsilon, True)
+
+        return approx.reshape(-1).astype(float).tolist()
+
+    def refine(self, image: np.ndarray, polygon: List[float]) -> List[float]:
+        """
+        Refine polygon with area-conservative smart superpixels.
+
+        Pipeline:
+        1. Detect Canny edges for edge-awareness
+        2. Pre-smooth image with bilateral filter
+        3. Generate superpixels
+        4. Score each superpixel considering:
+           - Overlap with original mask
+           - Edge alignment
+           - Area change impact (penalty for large changes)
+        5. Select superpixels that improve boundary without changing area too much
+        6. Smooth and convert to polygon
+        """
+        h, w = image.shape[:2]
+        mask = polygon_to_mask(polygon, w, h)
+        original_area = (mask > 0).sum()
+
+        try:
+            from skimage.segmentation import slic
+
+            # 1. Detect Canny edges
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            edges = cv2.Canny(gray, self.canny_low, self.canny_high)
+
+            # 2. Find where mask boundary aligns with edges
+            mask_boundary = cv2.Canny(mask, 100, 200)
+            edges_dilated = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+            edge_aligned_boundary = cv2.bitwise_and(mask_boundary, edges_dilated)
+            edge_zone = cv2.dilate(
+                edge_aligned_boundary, np.ones((5, 5), np.uint8), iterations=2
+            )
+
+            # 3. Pre-smooth image with bilateral filter
+            smoothed_img = cv2.bilateralFilter(
+                image,
+                d=9,
+                sigmaColor=self.bilateral_sigma,
+                sigmaSpace=self.bilateral_sigma,
+            )
+
+            # 4. Generate superpixels
+            segments = slic(
+                smoothed_img,
+                n_segments=self.n_segments,
+                compactness=self.compactness,
+                start_label=1,
+            )
+
+            # 5. Build refined mask with edge-awareness AND area penalty
+            refined_mask = np.zeros_like(mask)
+            running_area_change = 0
+
+            # Sort superpixels by their "borderline-ness" (closer to threshold = process first)
+            superpixel_scores = []
+            for segment_id in np.unique(segments):
+                segment_mask = segments == segment_id
+                total = segment_mask.sum()
+                if total == 0:
+                    continue
+
+                overlap = np.logical_and(segment_mask, mask > 0).sum()
+                overlap_ratio = overlap / total
+
+                # How borderline is this superpixel? (closer to 0.5 = more borderline)
+                borderline_score = abs(overlap_ratio - 0.5)
+                superpixel_scores.append((segment_id, overlap_ratio, total, borderline_score))
+
+            # Process non-borderline superpixels first (clear decisions)
+            superpixel_scores.sort(key=lambda x: -x[3])
+
+            for segment_id, overlap_ratio, total, _ in superpixel_scores:
+                segment_mask = segments == segment_id
+
+                # Edge-aware threshold adjustment
+                edge_zone_overlap = np.logical_and(segment_mask, edge_zone > 0).sum()
+                touches_edge_zone = edge_zone_overlap > 0
+
+                if touches_edge_zone:
+                    if overlap_ratio > 0.5:
+                        effective_threshold = self.overlap_threshold * (
+                            1 - self.edge_stickiness
+                        )
+                    else:
+                        effective_threshold = self.overlap_threshold * (
+                            1 + self.edge_stickiness
+                        )
+                else:
+                    effective_threshold = self.overlap_threshold
+
+                # Calculate area change if we include/exclude this superpixel
+                currently_in_mask = np.logical_and(segment_mask, mask > 0).sum()
+                would_add = total - currently_in_mask  # pixels we'd add
+                would_remove = currently_in_mask  # pixels we'd remove
+
+                if overlap_ratio > effective_threshold:
+                    # Would include this superpixel
+                    area_change = would_add / original_area if original_area > 0 else 0
+                else:
+                    # Would exclude this superpixel
+                    area_change = -would_remove / original_area if original_area > 0 else 0
+
+                # Apply area penalty: penalize decisions that change area significantly
+                area_change_magnitude = abs(area_change)
+
+                # Check if this would exceed max area change
+                if abs(running_area_change + area_change) > self.max_area_change:
+                    # Fall back to original mask state for this superpixel
+                    if currently_in_mask > total / 2:
+                        refined_mask[segment_mask] = 255
+                    continue
+
+                # Adjust threshold based on area penalty
+                # Large area changes require stronger evidence (higher overlap or lower overlap)
+                area_adjusted_threshold = effective_threshold
+                if area_change_magnitude > 0.01:  # Only apply penalty for non-trivial changes
+                    penalty = self.area_penalty * area_change_magnitude * 10
+                    if overlap_ratio > 0.5:
+                        # To include, need even higher overlap
+                        area_adjusted_threshold = min(0.9, effective_threshold + penalty)
+                    else:
+                        # To exclude, need even lower overlap
+                        area_adjusted_threshold = max(0.1, effective_threshold - penalty)
+
+                if overlap_ratio > area_adjusted_threshold:
+                    refined_mask[segment_mask] = 255
+                    running_area_change += area_change
+
+            # Apply mode constraints
+            if self.mode == "reduce":
+                refined_mask = cv2.bitwise_and(refined_mask, mask)
+            elif self.mode == "expand":
+                refined_mask = cv2.bitwise_or(refined_mask, mask)
+
+            # 6. Convert to smooth polygon
+            return self._smooth_mask_to_polygon(refined_mask)
+
+        except Exception as e:
+            print(f"Conservative smart superpixel refinement failed: {e}")
+            return polygon
+
+
+class EdgeAwareSuperpixelRefiner:
+    """
+    Superpixel refinement with bias toward staying on Canny edges.
+
+    Key behavior: If the current mask boundary follows a Canny edge,
+    the refinement will preserve that edge-following behavior rather
+    than pulling the boundary away.
+    """
+
+    def __init__(
+        self,
+        n_segments: int = 100,
+        compactness: float = 20.0,
+        overlap_threshold: float = 0.5,
+        edge_stickiness: float = 0.3,
+        canny_low: int = 50,
+        canny_high: int = 150,
+        smooth_sigma: int = 75,
+        mode: str = "default",
+    ):
+        """
+        Args:
+            n_segments: Approximate number of superpixels
+            compactness: Balance between color/spatial (higher = more regular shapes)
+            overlap_threshold: Base threshold for superpixel inclusion
+            edge_stickiness: How much to bias toward keeping boundary on edges (0-1)
+            canny_low: Canny edge detection low threshold
+            canny_high: Canny edge detection high threshold
+            smooth_sigma: Bilateral filter sigma for pre-smoothing
+            mode: 'default', 'reduce', or 'expand'
+        """
+        self.n_segments = n_segments
+        self.compactness = compactness
+        self.overlap_threshold = overlap_threshold
+        self.edge_stickiness = edge_stickiness
+        self.canny_low = canny_low
+        self.canny_high = canny_high
+        self.smooth_sigma = smooth_sigma
+        self.mode = mode
+
+    def refine(self, image: np.ndarray, polygon: List[float]) -> List[float]:
+        """
+        Refine polygon using edge-aware superpixels.
+
+        The algorithm:
+        1. Detect Canny edges in the image
+        2. Find where current mask boundary aligns with edges (edge zones)
+        3. Pre-smooth image to reduce texture sensitivity
+        4. Generate superpixels
+        5. For superpixels near edge zones, bias toward preserving the edge
+        6. For superpixels away from edges, use standard overlap threshold
+        """
+        h, w = image.shape[:2]
+        mask = polygon_to_mask(polygon, w, h)
+
+        try:
+            from skimage.segmentation import slic
+
+            # 1. Detect Canny edges
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            edges = cv2.Canny(gray, self.canny_low, self.canny_high)
+
+            # 2. Find current mask boundary
+            mask_boundary = cv2.Canny(mask, 100, 200)
+
+            # 3. Find where mask boundary aligns with image edges
+            # Dilate edges slightly to allow for small misalignments
+            edges_dilated = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+            edge_aligned_boundary = cv2.bitwise_and(mask_boundary, edges_dilated)
+
+            # Create "edge zone" - areas near edge-aligned boundaries that should be preserved
+            edge_zone = cv2.dilate(edge_aligned_boundary, np.ones((5, 5), np.uint8), iterations=2)
+
+            # 4. Pre-smooth image to reduce SLIC sensitivity to texture
+            smoothed = cv2.bilateralFilter(image, d=9, sigmaColor=self.smooth_sigma, sigmaSpace=self.smooth_sigma)
+
+            # 5. Generate superpixels on smoothed image
+            segments = slic(
+                smoothed,
+                n_segments=self.n_segments,
+                compactness=self.compactness,
+                start_label=1,
+            )
+
+            # 6. Build refined mask with edge-awareness
+            refined_mask = np.zeros_like(mask)
+
+            for segment_id in np.unique(segments):
+                segment_mask = segments == segment_id
+                total = segment_mask.sum()
+                if total == 0:
+                    continue
+
+                # Basic overlap ratio
+                overlap = np.logical_and(segment_mask, mask > 0).sum()
+                overlap_ratio = overlap / total
+
+                # Check if this superpixel touches the edge zone
+                edge_zone_overlap = np.logical_and(segment_mask, edge_zone > 0).sum()
+                touches_edge_zone = edge_zone_overlap > 0
+
+                if touches_edge_zone:
+                    # In edge zone: bias toward keeping the boundary on the edge
+                    # If superpixel is mostly inside mask, keep it inside
+                    # If mostly outside, keep it outside
+                    # This prevents the boundary from "jumping" off the edge
+                    if overlap_ratio > 0.5:
+                        # Mostly inside - include it (lower threshold)
+                        effective_threshold = self.overlap_threshold * (1 - self.edge_stickiness)
+                    else:
+                        # Mostly outside - exclude it (higher threshold)
+                        effective_threshold = self.overlap_threshold * (1 + self.edge_stickiness)
+                else:
+                    # Away from edges: use standard threshold
+                    effective_threshold = self.overlap_threshold
+
+                if overlap_ratio > effective_threshold:
+                    refined_mask[segment_mask] = 255
+
+            # Apply mode constraints
+            if self.mode == "reduce":
+                refined_mask = cv2.bitwise_and(refined_mask, mask)
+            elif self.mode == "expand":
+                refined_mask = cv2.bitwise_or(refined_mask, mask)
+
+            return mask_to_polygon(refined_mask)
+
+        except Exception as e:
+            print(f"Edge-aware superpixel refinement failed: {e}")
             return polygon
 
 
@@ -459,6 +981,9 @@ REFINERS = {
     "active_contour": ActiveContourRefiner,
     "watershed": WatershedRefiner,
     "superpixel": SuperpixelRefiner,
+    "smart_superpixel": SmartSuperpixelRefiner,
+    "conservative_smart_superpixel": ConservativeSmartSuperpixelRefiner,
+    "edge_aware_superpixel": EdgeAwareSuperpixelRefiner,
     "morphological": MorphologicalRefiner,
     "convex_hull": ConvexHullRefiner,
     "threshold": ThresholdRefiner,

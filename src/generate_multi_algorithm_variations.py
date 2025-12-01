@@ -13,6 +13,9 @@ from advanced_refinement import (
     ActiveContourRefiner,
     WatershedRefiner,
     SuperpixelRefiner,
+    SmartSuperpixelRefiner,
+    ConservativeSmartSuperpixelRefiner,
+    EdgeAwareSuperpixelRefiner,
     MorphologicalRefiner,
     ConvexHullRefiner,
     ThresholdRefiner,
@@ -51,7 +54,16 @@ def generate_algorithm_variations(
             "active_contour_loose",
             "watershed",
             "superpixel_fine",
+            "superpixel_fine_reduce",
+            "superpixel_fine_expand",
             "superpixel_coarse",
+            "superpixel_coarse_reduce",
+            "superpixel_coarse_expand",
+            "smart_superpixel",
+            "smart_superpixel_smooth",
+            "conservative_smart_superpixel",
+            "conservative_smart_superpixel_strict",
+            "edge_aware_superpixel",
             "morphological_close",
             "morphological_open",
             "convex_hull",
@@ -106,22 +118,148 @@ def generate_algorithm_variations(
     if "superpixel_fine" in algorithms:
         try:
             refiner = SuperpixelRefiner(
-                n_segments=200, compactness=10.0, overlap_threshold=0.3
+                n_segments=200, compactness=10.0, overlap_threshold=0.3, mode="default"
             )
             refined = refiner.refine(image, polygon)
             variations.append({"name": "Superpixel (Fine)", "new_points": refined})
         except Exception as e:
             print(f"Superpixel fine failed: {e}")
 
+    if "superpixel_fine_reduce" in algorithms:
+        try:
+            # Higher threshold for reduce to encourage trimming
+            refiner = SuperpixelRefiner(
+                n_segments=200, compactness=10.0, overlap_threshold=0.7, mode="reduce"
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append(
+                {"name": "Superpixel (Fine, Reduce)", "new_points": refined}
+            )
+        except Exception as e:
+            print(f"Superpixel fine reduce failed: {e}")
+
+    if "superpixel_fine_expand" in algorithms:
+        try:
+            # Lower threshold for expand to encourage growth
+            refiner = SuperpixelRefiner(
+                n_segments=200, compactness=10.0, overlap_threshold=0.3, mode="expand"
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append(
+                {"name": "Superpixel (Fine, Expand)", "new_points": refined}
+            )
+        except Exception as e:
+            print(f"Superpixel fine expand failed: {e}")
+
     if "superpixel_coarse" in algorithms:
         try:
             refiner = SuperpixelRefiner(
-                n_segments=50, compactness=20.0, overlap_threshold=0.5
+                n_segments=50, compactness=20.0, overlap_threshold=0.5, mode="default"
             )
             refined = refiner.refine(image, polygon)
             variations.append({"name": "Superpixel (Coarse)", "new_points": refined})
         except Exception as e:
             print(f"Superpixel coarse failed: {e}")
+
+    if "superpixel_coarse_reduce" in algorithms:
+        try:
+            refiner = SuperpixelRefiner(
+                n_segments=50, compactness=20.0, overlap_threshold=0.7, mode="reduce"
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append(
+                {"name": "Superpixel (Coarse, Reduce)", "new_points": refined}
+            )
+        except Exception as e:
+            print(f"Superpixel coarse reduce failed: {e}")
+
+    if "superpixel_coarse_expand" in algorithms:
+        try:
+            refiner = SuperpixelRefiner(
+                n_segments=50, compactness=20.0, overlap_threshold=0.3, mode="expand"
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append(
+                {"name": "Superpixel (Coarse, Expand)", "new_points": refined}
+            )
+        except Exception as e:
+            print(f"Superpixel coarse expand failed: {e}")
+
+    # Smart Superpixel variations (edge-aware + smooth)
+    if "smart_superpixel" in algorithms:
+        try:
+            refiner = SmartSuperpixelRefiner(
+                n_segments=100,
+                compactness=20.0,
+                overlap_threshold=0.5,
+                edge_stickiness=0.3,
+                smooth_kernel=7,
+                polygon_epsilon=0.003,
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append({"name": "Smart Superpixel", "new_points": refined})
+        except Exception as e:
+            print(f"Smart superpixel failed: {e}")
+
+    if "smart_superpixel_smooth" in algorithms:
+        try:
+            refiner = SmartSuperpixelRefiner(
+                n_segments=80,
+                compactness=25.0,
+                overlap_threshold=0.5,
+                edge_stickiness=0.4,
+                smooth_kernel=9,
+                polygon_epsilon=0.005,  # More aggressive smoothing
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append({"name": "Smart Superpixel (Smooth)", "new_points": refined})
+        except Exception as e:
+            print(f"Smart superpixel smooth failed: {e}")
+
+    # Conservative Smart Superpixel (with area penalty)
+    if "conservative_smart_superpixel" in algorithms:
+        try:
+            refiner = ConservativeSmartSuperpixelRefiner(
+                n_segments=100,
+                compactness=20.0,
+                overlap_threshold=0.5,
+                edge_stickiness=0.3,
+                area_penalty=0.5,
+                max_area_change=0.15,
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append({"name": "Conservative Smart Superpixel", "new_points": refined})
+        except Exception as e:
+            print(f"Conservative smart superpixel failed: {e}")
+
+    if "conservative_smart_superpixel_strict" in algorithms:
+        try:
+            refiner = ConservativeSmartSuperpixelRefiner(
+                n_segments=100,
+                compactness=20.0,
+                overlap_threshold=0.5,
+                edge_stickiness=0.4,
+                area_penalty=0.8,
+                max_area_change=0.08,  # Very strict area preservation
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append({"name": "Conservative Smart Superpixel (Strict)", "new_points": refined})
+        except Exception as e:
+            print(f"Conservative smart superpixel strict failed: {e}")
+
+    # Edge-aware Superpixel (edge stickiness without smoothing)
+    if "edge_aware_superpixel" in algorithms:
+        try:
+            refiner = EdgeAwareSuperpixelRefiner(
+                n_segments=100,
+                compactness=20.0,
+                overlap_threshold=0.5,
+                edge_stickiness=0.3,
+            )
+            refined = refiner.refine(image, polygon)
+            variations.append({"name": "Edge-Aware Superpixel", "new_points": refined})
+        except Exception as e:
+            print(f"Edge-aware superpixel failed: {e}")
 
     # Morphological variations
     if "morphological_close" in algorithms:

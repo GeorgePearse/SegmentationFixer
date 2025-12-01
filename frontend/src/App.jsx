@@ -86,16 +86,19 @@ function App() {
         setProposal(null);
         setSelectedVariation(null);
       } else if (e.key === 'ArrowRight') {
-        // Accept current selection and move to next annotation
-        if (selectedVariation === null) {
-          alert('Please select a variation first');
-          return;
+        // Accept current selection if one is selected, otherwise skip
+        if (selectedVariation !== null) {
+          ws.send(JSON.stringify({
+            type: 'ACCEPT',
+            annotation_id: proposal.annotation_id,
+            variation_index: selectedVariation
+          }));
+        } else {
+          ws.send(JSON.stringify({
+            type: 'REJECT',
+            annotation_id: proposal.annotation_id
+          }));
         }
-        ws.send(JSON.stringify({
-          type: 'ACCEPT',
-          annotation_id: proposal.annotation_id,
-          variation_index: selectedVariation
-        }));
         setProposal(null);
         setSelectedVariation(null);
       }
@@ -323,7 +326,7 @@ function App() {
 
         <div className="overlay-instructions">
             <div className="key-hint"><kbd>←</kbd> Skip</div>
-            <div className="key-hint"><kbd>→</kbd> Accept {selectedVariation !== null && `(${proposal.variations[selectedVariation].name})`}</div>
+            <div className="key-hint"><kbd>→</kbd> Next {selectedVariation !== null && `(Accept ${proposal.variations[selectedVariation].name})`}</div>
             <div className="key-hint"><kbd>I</kbd> Accept</div>
             <div className="key-hint"><kbd>J</kbd> Skip</div>
         </div>

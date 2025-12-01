@@ -96,16 +96,17 @@ Frontend runs on http://localhost:5174
 
 1. Open http://localhost:5173 in your browser
 2. View the **original segmentation** at the top
-3. **Click a variation** from the grid below that looks best
-4. Press **`→`** or **`I`** to accept and move to next annotation
+3. **Optional:** Click a variation from the grid below that looks best
+4. Press **`→`** to move to next (accepts selection if one is chosen, otherwise skips)
 5. Press **`←`** or **`J`** to skip and move to next annotation
-6. Progress is auto-saved; use "Save Progress" button for manual saves
+6. Press **`I`** to accept selected variation (requires selection)
+7. Progress is auto-saved; use "Save Progress" button for manual saves
 
 **Keyboard Shortcuts:**
-- **`←`** - Skip to next annotation (reject current)
-- **`→`** - Accept selected variation and move to next
-- **`I`** - Accept selected variation and move to next
-- **`J`** - Skip to next annotation (reject current)
+- **`←`** - Skip to next annotation
+- **`→`** - Move to next (accepts if variation selected, skips otherwise)
+- **`I`** - Accept selected variation (requires selection)
+- **`J`** - Skip to next annotation
 - **Mouse Wheel** - Zoom in/out
 - **Click + Drag** - Pan around image
 

@@ -254,6 +254,10 @@ kbd {
     color: #fff;
 }
 
+kbd + kbd {
+    margin-left: 4px;
+}
+
 /* Info Bar */
 .info-bar {
     background-color: var(--bg-panel);

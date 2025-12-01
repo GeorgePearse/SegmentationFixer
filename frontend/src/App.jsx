@@ -9,6 +9,7 @@ function App() {
   const [progress, setProgress] = useState({ current: 0, total: 100 });
   const [isDone, setIsDone] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState(null);
+  const variationRefs = useRef([]);
 
   useEffect(() => {
     const socket = new WebSocket('ws://localhost:3000/ws');
@@ -52,6 +53,17 @@ function App() {
     }
   }, [proposal]);
 
+  // Scroll selected variation into view when navigating with arrows
+  useEffect(() => {
+    if (selectedVariation !== null && variationRefs.current[selectedVariation]) {
+      variationRefs.current[selectedVariation].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, [selectedVariation]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!proposal || !ws) return;
@@ -75,6 +87,22 @@ function App() {
         }));
         setProposal(null);
         setSelectedVariation(null);
+      } else if (e.key === 'ArrowLeft') {
+        // Navigate to previous variation
+        if (!proposal.variations || proposal.variations.length === 0) return;
+        if (selectedVariation === null) {
+          setSelectedVariation(proposal.variations.length - 1);
+        } else {
+          setSelectedVariation((selectedVariation - 1 + proposal.variations.length) % proposal.variations.length);
+        }
+      } else if (e.key === 'ArrowRight') {
+        // Navigate to next variation
+        if (!proposal.variations || proposal.variations.length === 0) return;
+        if (selectedVariation === null) {
+          setSelectedVariation(0);
+        } else {
+          setSelectedVariation((selectedVariation + 1) % proposal.variations.length);
+        }
       }
     };
 
@@ -270,7 +298,8 @@ function App() {
             <div className="variations-grid">
                 {proposal.variations && proposal.variations.map((variation, idx) => (
                     <div 
-                        key={idx} 
+                        key={idx}
+                        ref={el => variationRefs.current[idx] = el}
                         className={`variation-card ${selectedVariation === idx ? 'selected' : ''}`}
                         onClick={() => setSelectedVariation(idx)}
                     >
@@ -299,6 +328,7 @@ function App() {
         </div>
 
         <div className="overlay-instructions">
+            <div className="key-hint"><kbd>←</kbd><kbd>→</kbd> Navigate</div>
             <div className="key-hint"><kbd>I</kbd> Accept {selectedVariation !== null && `(${proposal.variations[selectedVariation].name})`}</div>
             <div className="key-hint"><kbd>J</kbd> Reject</div>
         </div>
